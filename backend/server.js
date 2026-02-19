@@ -21,44 +21,39 @@ await connectDB();
 
 const app = express();
 
-/* ===========================
-   Security & Middleware
-=========================== */
-
-app.use(helmet());
-
-app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true }));
-
-/* ===========================
-   ✅ PRODUCTION CORS FIX
-=========================== */
+/* ===============================
+   🔥 PRODUCTION SAFE CORS FIX
+================================= */
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://cyberraksha-q4pswdv3b-sahil-anil-nikams-projects.vercel.app"
+  process.env.FRONTEND_URL
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow non-browser requests (like Postman)
       if (!origin) return callback(null, true);
-
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
       }
-
-      return callback(new Error("Not allowed by CORS"));
     },
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
-/* ===========================
-   Logging & Rate Limit
-=========================== */
+/* ✅ Important for preflight */
+app.options("*", cors());
 
+/* =============================== */
+
+app.use(helmet());
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
 const limiter = rateLimit({
@@ -67,31 +62,26 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-
 app.use(limiter);
-
-/* ===========================
-   Uploads Folder Setup
-=========================== */
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/* Ensure uploads folder exists */
 const uploadsPath = path.join(__dirname, "uploads");
-
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
 
 app.use("/uploads", express.static(uploadsPath));
 
-/* ===========================
-   Routes
-=========================== */
+/* ===============================
+   ROUTES
+================================= */
 
-app.get("/", (req, res) => {
-  res.json({ ok: true, app: "CyberRaksha API" });
-});
+app.get("/", (req, res) =>
+  res.json({ ok: true, app: "CyberRaksha API" })
+);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/cases", caseRoutes);
@@ -99,20 +89,12 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/portal", portalRoutes);
 app.use("/api/bot", botRoutes);
 
-/* ===========================
-   404 Handler
-=========================== */
-
+/* 404 */
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-/* ===========================
-   Start Server
-=========================== */
-
 const PORT = process.env.PORT || 4000;
-
-app.listen(PORT, () => {
-  console.log(`✅ Backend running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`✅ Backend running on port ${PORT}`)
+);
