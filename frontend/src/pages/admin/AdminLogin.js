@@ -1,177 +1,127 @@
 import React, { useState } from "react";
-import Navbar from "../../components/Navbar";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../utils/api";
+import { ShieldCheck, Lock, Mail, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
-import {
-  Shield,
-  Lock,
-  Mail,
-  Eye,
-  EyeOff,
-  AlertTriangle
-} from "lucide-react";
 
 export default function AdminLogin() {
+  const nav = useNavigate();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
-  const [showPass, setShowPass] = useState(false);
+  const [error, setError] = useState("");
 
-  const [form, setForm] = useState({
-    email: "",
-    password: ""
-  });
-
-  async function submit(e) {
+  async function handleLogin(e) {
     e.preventDefault();
+    setError("");
     setLoading(true);
 
     try {
-      // ✅ Backend route
-      const res = await api.post("/api/auth/login", form);
+      const res = await api.post("/api/auth/login", {
+        email,
+        password
+      });
 
-      // Only allow admin / analyst
-      if (res.data?.user?.role !== "ADMIN" && res.data?.user?.role !== "ANALYST") {
-        alert("You are not allowed to access SOC Dashboard ❌");
+      const token = res.data?.token;
+      const user = res.data?.user;
+
+      if (!token || !user) {
+        throw new Error("Invalid server response");
+      }
+
+      // ✅ Only ADMIN / ANALYST allowed
+      if (user.role !== "ADMIN" && user.role !== "ANALYST") {
+        setError("Access denied: You are not an Admin/Analyst.");
         setLoading(false);
         return;
       }
 
-      localStorage.setItem("user_token", res.data.token);
-      localStorage.setItem("user_profile", JSON.stringify(res.data.user));
+      localStorage.setItem("admin_token", token);
+      localStorage.setItem("admin_profile", JSON.stringify(user));
 
-      window.location.href = "/admin/dashboard";
+      nav("/admin/dashboard");
     } catch (err) {
-      alert(err?.response?.data?.message || "Admin login failed");
+      console.log(err);
+      setError(err?.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          {/* LEFT HERO */}
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
-            className="bg-white rounded-[36px] shadow-lg border p-8 md:p-10"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border bg-gray-50 text-sm font-bold">
-              <Shield size={18} />
-              CyberRaksha SOC Access
-            </div>
-
-            <h1 className="text-4xl md:text-5xl font-black mt-6 leading-tight">
-              Admin / Analyst Login 🧠🛡️
-            </h1>
-
-            <p className="text-gray-600 mt-4 text-lg">
-              Secure access for SOC analysts to review scam reports, set status,
-              and reply to users.
+    <div className="min-h-screen bg-[#050a14] text-white flex items-center justify-center px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl p-6"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center">
+            <ShieldCheck />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black">CyberRaksha Admin</h1>
+            <p className="text-white/60 text-sm">
+              Secure SOC Dashboard Login (JWT)
             </p>
-
-            <div className="mt-8 grid gap-4">
-              <div className="rounded-3xl border p-5">
-                <div className="font-black flex items-center gap-2">
-                  <AlertTriangle size={18} />
-                  Security Rule
-                </div>
-                <div className="text-sm text-gray-600 mt-2">
-                  Never ask users for OTP, password, or remote access.
-                </div>
-              </div>
-
-              <div className="rounded-3xl border p-5">
-                <div className="font-black flex items-center gap-2">
-                  <Lock size={18} />
-                  SOC Workflow
-                </div>
-                <div className="text-sm text-gray-600 mt-2">
-                  Review → classify SAFE/SCAM → reply → close case.
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* RIGHT LOGIN FORM */}
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.05 }}
-            className="bg-white rounded-[36px] shadow-lg border p-8 md:p-10"
-          >
-            <div className="text-3xl font-black">SOC Login</div>
-            <p className="text-gray-600 mt-2">
-              Enter your admin credentials to continue.
-            </p>
-
-            <form onSubmit={submit} className="mt-8 space-y-5">
-              {/* EMAIL */}
-              <div>
-                <div className="text-sm font-bold mb-2">Email</div>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                    <Mail size={18} />
-                  </div>
-                  <input
-                    className="w-full border rounded-2xl pl-12 pr-4 py-3"
-                    placeholder="admin@cyberraksha.com"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* PASSWORD */}
-              <div>
-                <div className="text-sm font-bold mb-2">Password</div>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                    <Lock size={18} />
-                  </div>
-
-                  <input
-                    className="w-full border rounded-2xl pl-12 pr-12 py-3"
-                    placeholder="Enter password"
-                    type={showPass ? "text" : "password"}
-                    value={form.password}
-                    onChange={(e) =>
-                      setForm({ ...form, password: e.target.value })
-                    }
-                    required
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-900"
-                  >
-                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* BUTTON */}
-              <button
-                disabled={loading}
-                className="w-full px-6 py-3 rounded-2xl bg-gray-900 text-white font-semibold text-lg disabled:opacity-60"
-              >
-                {loading ? "Logging in..." : "Login to SOC Dashboard"}
-              </button>
-
-              {/* FOOTER */}
-              <div className="text-xs text-gray-600 mt-3">
-                🔒 This portal is restricted to ADMIN / ANALYST only.
-              </div>
-            </form>
-          </motion.div>
+          </div>
         </div>
-      </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 flex gap-2">
+            <AlertTriangle size={18} className="mt-[2px]" />
+            <div>{error}</div>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="mt-6 space-y-4">
+          <div>
+            <label className="text-sm font-semibold text-white/80">
+              Admin Email
+            </label>
+            <div className="mt-2 flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10">
+              <Mail size={18} className="text-white/60" />
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@cyberraksha.com"
+                className="w-full bg-transparent outline-none text-white"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold text-white/80">
+              Password
+            </label>
+            <div className="mt-2 flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10">
+              <Lock size={18} className="text-white/60" />
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                type="password"
+                className="w-full bg-transparent outline-none text-white"
+              />
+            </div>
+          </div>
+
+          <button
+            disabled={loading}
+            className="w-full py-3 rounded-2xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 transition disabled:opacity-60"
+          >
+            {loading ? "Signing in..." : "Login"}
+          </button>
+
+          <p className="text-xs text-white/50 text-center">
+            Only ADMIN / ANALYST roles can access SOC dashboard.
+          </p>
+        </form>
+      </motion.div>
     </div>
   );
 }

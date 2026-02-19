@@ -41,9 +41,25 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState("CASES"); // CASES | USERS
 
-  // ✅ AI STATE (Fix 1-sec disappearing bug)
+  // ✅ AI STATE
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
+
+  // -----------------------------
+  // Auth guard (extra safety)
+  // -----------------------------
+  useEffect(() => {
+    const token = localStorage.getItem("admin_token");
+    const profileRaw = localStorage.getItem("admin_profile");
+    const profile = profileRaw ? JSON.parse(profileRaw) : null;
+
+    if (!token || !profile || (profile.role !== "ADMIN" && profile.role !== "ANALYST")) {
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_profile");
+      nav("/admin/login");
+    }
+    // eslint-disable-next-line
+  }, []);
 
   // ===== LOADERS =====
   async function loadCases() {
@@ -167,15 +183,12 @@ export default function AdminDashboard() {
         `/api/admin/cases/${selectedCase._id}/ai-suggest`
       );
 
-      // ✅ keep AI result stable
       setAiResult(res.data);
 
-      // ✅ auto-fill reply box
       if (res.data?.autoReply) {
         setReplyDraft(res.data.autoReply);
       }
 
-      // ✅ also auto update status/severity in UI instantly
       if (res.data?.status) {
         await updateSelectedCase({ status: res.data.status });
       }
@@ -516,7 +529,7 @@ export default function AdminDashboard() {
                         </button>
                       </div>
 
-                      {/* AI Result (stable) */}
+                      {/* AI Result */}
                       {aiResult && (
                         <div className="mt-5 border rounded-3xl p-5 bg-gray-50">
                           <div className="font-black flex items-center gap-2">
