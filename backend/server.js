@@ -21,70 +21,51 @@ await connectDB();
 
 const app = express();
 
-/* =========================
-   SECURITY + MIDDLEWARE
-========================= */
-
+/* -------------------- SECURITY -------------------- */
 app.use(helmet());
 
-app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true }));
-
-/* =========================
-   ✅ PRODUCTION CORS FIX
-========================= */
-
-const allowedOrigin = process.env.FRONTEND_URL;
-
+/* -------------------- CORS FIX (FINAL) -------------------- */
 app.use(
   cors({
-    origin: allowedOrigin,
-    credentials: true
+    origin: "*", // allow all origins (fixes Vercel dynamic URLs)
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-/* ========================= */
+// handle preflight explicitly
+app.options("*", cors());
 
+/* -------------------- BODY PARSER -------------------- */
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+/* -------------------- LOGGING -------------------- */
 app.use(morgan("dev"));
 
+/* -------------------- RATE LIMIT -------------------- */
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false
+  limit: 120,
 });
 app.use(limiter);
 
-/* =========================
-   FILE PATH SETUP
-========================= */
-
+/* -------------------- FILE PATH -------------------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/* =========================
-   UPLOADS FOLDER
-========================= */
-
+/* -------------------- UPLOADS -------------------- */
 const uploadsPath = path.join(__dirname, "uploads");
-
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
 
 app.use("/uploads", express.static(uploadsPath));
 
-/* =========================
-   ROUTES
-========================= */
-
-app.get("/", (req, res) => {
-  res.json({
-    ok: true,
-    app: "CyberRaksha API",
-    environment: process.env.NODE_ENV
-  });
-});
+/* -------------------- ROUTES -------------------- */
+app.get("/", (req, res) =>
+  res.json({ ok: true, app: "CyberRaksha API" })
+);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/cases", caseRoutes);
@@ -92,20 +73,14 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/portal", portalRoutes);
 app.use("/api/bot", botRoutes);
 
-/* =========================
-   404 HANDLER
-========================= */
-
+/* -------------------- 404 -------------------- */
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-/* =========================
-   START SERVER
-========================= */
-
+/* -------------------- SERVER -------------------- */
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`✅ Backend running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`✅ Backend running on port ${PORT}`)
+);
