@@ -15,7 +15,8 @@ router.post("/chat", async (req, res) => {
       return res.status(400).json({ message: "Message is required" });
     }
 
-    const reply = runChatBotAI(message);
+    // ✅ MUST await async AI function
+    const reply = await runChatBotAI(message);
 
     return res.json({ reply });
   } catch (err) {
